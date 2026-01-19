@@ -26,7 +26,7 @@ import com.carwash.service.offer.OfferService;
 @Service
 public class PaymentServiceImpl implements PaymentService {
 
-    private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
+	private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
 
 	@Autowired
 	private AppointmentRepository appointmentRepository;
@@ -40,7 +40,7 @@ public class PaymentServiceImpl implements PaymentService {
 	@Override
 	public PaymentPreviewResponse preview(String customerEmail, Long appointmentId, String offerCode) {
 		// TODO Auto-generated method stub
-		 log.info("Previewing payment for appointmentId={} by {}", appointmentId, customerEmail);
+		log.info("Previewing payment for appointmentId={} by {}", appointmentId, customerEmail);
 
 		Appointment appt = mustBeCustomerOwnedAppt(customerEmail, appointmentId);
 
@@ -49,7 +49,7 @@ public class PaymentServiceImpl implements PaymentService {
 
 		if (offerCode != null && !offerCode.isBlank()) {
 			discount = computeDiscount(amount, offerCode);
-			 log.info("Discount preview applied for offerCode={} discount={}", offerCode, discount);
+			log.info("Discount preview applied for offerCode={} discount={}", offerCode, discount);
 		}
 
 		PaymentPreviewResponse res = new PaymentPreviewResponse();
@@ -70,7 +70,7 @@ public class PaymentServiceImpl implements PaymentService {
 		if (paymentRepository.existsByAppointment(appt)) {
 			Payment existing = paymentRepository.findByAppointment(appt).get();
 			if (existing.getStatus() == PaymentStatus.PAID) {
-				 log.info("Payment already completed appointmentId={}", appointmentId);
+				log.info("Payment already completed appointmentId={}", appointmentId);
 				return toResponse(existing);
 			}
 		}
@@ -97,12 +97,11 @@ public class PaymentServiceImpl implements PaymentService {
 		p = paymentRepository.save(p);
 		log.info("Payment successful appointmentId={} paymentId={}", appointmentId, p.getId());
 
-		
 		return toResponse(p);
 	}
 
 	private Appointment mustBeCustomerOwnedAppt(String customerEmail, Long appointmentId) {
-		 log.info("Validating customer ownership for appointmentId={} by {}", appointmentId, customerEmail);
+		log.info("Validating customer ownership for appointmentId={} by {}", appointmentId, customerEmail);
 		User user = userRepository.findByEmail(customerEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
@@ -120,7 +119,7 @@ public class PaymentServiceImpl implements PaymentService {
 	}
 
 	private Double computeDiscount(Double amount, String code) {
-		
+
 		log.info("Computing discount for code={}", code);
 		OfferResponse offer = offerService.getByCode(code);
 
@@ -170,6 +169,14 @@ public class PaymentServiceImpl implements PaymentService {
 		return r;
 	}
 
+	public PaymentResponse getByAppointmentId(Long apptId) {
+		Appointment appt = appointmentRepository.findById(apptId)
+				.orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
+		Payment p = paymentRepository.findByAppointment(appt)
+				.orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+
+		return toResponse(p);
+	}
 
 }

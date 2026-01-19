@@ -12,6 +12,7 @@ public interface PaymentService {
     PaymentResponse pay(String customerEmail, Long appointmentId, String method, String offerCode);
 //    void refundIfPaid(Long appointmentId, String reason);
 //    PaymentResponse getByAppointment(String customerEmail, Long appointmentId);
+	PaymentResponse getByAppointmentId(Long id);
 
 
 }
