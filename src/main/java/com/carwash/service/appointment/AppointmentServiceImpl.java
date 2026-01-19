@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +36,8 @@ import com.carwash.service.payment.PaymentService;
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
 
+    private static final Logger log = LoggerFactory.getLogger(AppointmentServiceImpl.class);
+
 	@Autowired
 	private AppointmentRepository appointmentRepo;
 
@@ -55,11 +59,12 @@ public class AppointmentServiceImpl implements AppointmentService {
 	@Override
 	public List<ServiceProviderAvailability> recentProvidersOptions(String customerEmail, Long serviceItemId,
 			LocalDateTime scheduledAt) {
-
+		log.info("Fetching recent providers for customerEmail={}", customerEmail);
 		User customer = userRepo.findByEmail(customerEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
 		if (customer.getRole() != Role.CUSTOMER) {
+			 log.warn("Non-customer tried to fetch recent providers email={}", customerEmail);
 			throw new AccessDeniedCustomException("Only customers allowed");
 		}
 
@@ -81,6 +86,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
 			result.add(toSummary(p, available));
 		}
+		
+		log.info("Found {} recent providers for customerId={}", result.size(), customer.getUserId());
 
 		return result;
 
@@ -90,6 +97,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 	public List<ServiceProviderAvailability> suggestedProviders(String customerEmail, Long serviceItemId,
 			LocalDateTime scheduledAt, Integer limit) {
 		// TODO Auto-generated method stub
+		log.info("Fetching suggested providers for customerEmail={}, serviceItemId={}", customerEmail, serviceItemId);
 		if (limit == null) {
 			limit = 5;
 		}
@@ -101,6 +109,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 				.orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
 		if (customer.getRole() != Role.CUSTOMER) {
+			log.warn("Non-customer tried to fetch suggestions email={}", customerEmail);
 			throw new AccessDeniedCustomException("Only customers allowed");
 		}
 
@@ -126,6 +135,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 				break;
 			}
 		}
+		log.info("Suggested {} providers for customerId={}", availableOthers.size(), customer.getUserId());
 
 		return availableOthers;
 
@@ -134,10 +144,13 @@ public class AppointmentServiceImpl implements AppointmentService {
 	@Override
 	public AppointmentResponse create(String customerEmail, AppointmentRequest req) {
 		// TODO Auto-generated method stub
+		
+		log.info("Creating appointment for customerEmail={}", customerEmail);
 		User customer = userRepo.findByEmail(customerEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
 		if (customer.getRole() != Role.CUSTOMER) {
+			log.warn("Non-customer tried to create appointment email={}", customerEmail);
 			throw new AccessDeniedCustomException("Only customers can book");
 		}
 
@@ -167,6 +180,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 			}
 
 			if (!chosenIsPast && !availablePast.isEmpty()) {
+				log.warn("Customer must choose past provider customerId={}", customer.getUserId());
 				throw new BadRequestException("Choose a provider you used before at this time");
 			}
 
@@ -174,6 +188,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 				boolean chosenAvailable = isProviderAvailable(provider, req.getScheduledAt(),
 						item.getDurationMinutes());
 				if (!chosenAvailable) {
+					log.warn("Chosen past provider busy providerId={}", provider.getId());
 					throw new BadRequestException("Selected past provider is busy at this time");
 				}
 			}
@@ -203,13 +218,14 @@ public class AppointmentServiceImpl implements AppointmentService {
 		appt.setNotes(req.getNotes());
 
 		appt = appointmentRepo.save(appt);
-
+		log.info("Appointment created successfully");
 		return toResponse(appt);
 	}
 
 	@Override
 	public List<AppointmentResponse> getMyBookings(String customerEmail) {
 		// TODO Auto-generated method stub
+		log.info("Fetching bookings for customerEmail={}", customerEmail);
 		User customer = userRepo.findByEmail(customerEmail)
 				.orElseThrow(() -> new RuntimeException("Customer not found"));
 
@@ -231,6 +247,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 	@Override
 	public void cancelMyBooking(String customerEmail, Long appointmentId) {
 
+		  log.info("Cancel booking attempt bookingId={} by {}", appointmentId, customerEmail);
 		User customer = userRepo.findByEmail(customerEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 		if (customer.getRole() != Role.CUSTOMER) {
@@ -240,17 +257,26 @@ public class AppointmentServiceImpl implements AppointmentService {
 				.orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
 		if (!appt.getCustomer().getUserId().equals(customer.getUserId())) {
+			 log.warn("Customer tried to cancel someone else's booking id={}", appointmentId);
 			throw new AccessDeniedCustomException("You cannot cancel this booking");
 		}
 		if (appt.getStatus() == BookingStatus.COMPLETED) {
+			log.warn("Customer tried to cancel completed booking id={}", appointmentId);
 			throw new BadRequestException("Cannot cancel completed booking");
 		}
+
+        appt.setStatus(BookingStatus.CANCELLED);
+        appointmentRepo.save(appt);
+
+        log.info("Booking cancelled bookingId={}", appointmentId);
+
 
 	}
 
 	@Override
 	public List<AppointmentResponse> getProviderBookings(String providerEmail) {
 		// TODO Auto-generated method stub
+		 log.info("Fetching provider bookings email={}", providerEmail);
 		User providerUser = userRepo.findByEmail(providerEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -263,6 +289,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 		}
 
 		if (provider == null) {
+			log.error("Service provider not found for {}", providerEmail);
 			throw new ResourceNotFoundException("Service provider not found");
 		}
 
@@ -279,6 +306,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
 	@Override
 	public void accept(String providerEmail, Long appointmentId) {
+		log.info("Provider {} accepting bookingId={}", providerEmail, appointmentId);
 		Appointment appt = findProviderOwnedAppointment(providerEmail, appointmentId);
 
 		if (appt.getStatus() != BookingStatus.PENDING) {
@@ -297,13 +325,14 @@ public class AppointmentServiceImpl implements AppointmentService {
 	@Override
 	public void reject(String providerEmail, Long appointmentId) {
 		// TODO Auto-generated method stub
-
+		log.info("Provider {} rejecting bookingId={}", providerEmail, appointmentId);
 		Appointment appt = findProviderOwnedAppointment(providerEmail, appointmentId);
 		if (appt.getStatus() != BookingStatus.PENDING) {
 			throw new BadRequestException("Only pending can be rejected");
 		}
 		appt.setStatus(BookingStatus.REJECTED);
 		appointmentRepo.save(appt);
+		log.info("Booking rejected bookingId={}", appointmentId);
 
 	}
 
@@ -406,6 +435,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 	}
 
 	private Appointment findProviderOwnedAppointment(String providerEmail, Long appointmentId) {
+		log.info("Validating provider ownership providerEmail={}, appointmentId={}", providerEmail, appointmentId);
 		User providerUser = userRepo.findByEmail(providerEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 

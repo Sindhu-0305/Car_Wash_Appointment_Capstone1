@@ -2,6 +2,8 @@ package com.carwash.service.payment;
 
 import java.time.LocalDate;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +16,7 @@ import com.carwash.entity.payment.Payment;
 import com.carwash.enums.appointment.BookingStatus;
 import com.carwash.enums.offer.DiscountType;
 import com.carwash.enums.payment.PaymentStatus;
+import com.carwash.exception.BadRequestException;
 import com.carwash.exception.ResourceNotFoundException;
 import com.carwash.repository.UserRepository;
 import com.carwash.repository.appointment.AppointmentRepository;
@@ -22,6 +25,8 @@ import com.carwash.service.offer.OfferService;
 
 @Service
 public class PaymentServiceImpl implements PaymentService {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
 
 	@Autowired
 	private AppointmentRepository appointmentRepository;
@@ -35,6 +40,8 @@ public class PaymentServiceImpl implements PaymentService {
 	@Override
 	public PaymentPreviewResponse preview(String customerEmail, Long appointmentId, String offerCode) {
 		// TODO Auto-generated method stub
+		 log.info("Previewing payment for appointmentId={} by {}", appointmentId, customerEmail);
+
 		Appointment appt = mustBeCustomerOwnedAppt(customerEmail, appointmentId);
 
 		Double amount = appt.getPrice();
@@ -42,6 +49,7 @@ public class PaymentServiceImpl implements PaymentService {
 
 		if (offerCode != null && !offerCode.isBlank()) {
 			discount = computeDiscount(amount, offerCode);
+			 log.info("Discount preview applied for offerCode={} discount={}", offerCode, discount);
 		}
 
 		PaymentPreviewResponse res = new PaymentPreviewResponse();
@@ -49,17 +57,20 @@ public class PaymentServiceImpl implements PaymentService {
 		res.setDiscount(discount);
 		res.setFinalAmount(Math.max(0.0, amount - discount));
 		res.setOfferCode(offerCode);
+		log.info("Payment preview complete appointmentId={} finalAmount={}", appointmentId, res.getFinalAmount());
 		return res;
 	}
 
 	@Override
 	public PaymentResponse pay(String customerEmail, Long appointmentId, String method, String offerCode) {
 		// TODO Auto-generated method stub
+		log.info("Processing payment for appointmentId={} by {}", appointmentId, customerEmail);
 		Appointment appt = mustBeCustomerOwnedAppt(customerEmail, appointmentId);
 
 		if (paymentRepository.existsByAppointment(appt)) {
 			Payment existing = paymentRepository.findByAppointment(appt).get();
 			if (existing.getStatus() == PaymentStatus.PAID) {
+				 log.info("Payment already completed appointmentId={}", appointmentId);
 				return toResponse(existing);
 			}
 		}
@@ -68,6 +79,7 @@ public class PaymentServiceImpl implements PaymentService {
 		Double discount = 0.0;
 
 		if (offerCode != null && !offerCode.isBlank()) {
+			log.info("Applying discount offerCode={} discount={}", offerCode, discount);
 			discount = computeDiscount(amount, offerCode);
 		}
 
@@ -83,11 +95,14 @@ public class PaymentServiceImpl implements PaymentService {
 		p.setStatus(PaymentStatus.PAID);
 
 		p = paymentRepository.save(p);
+		log.info("Payment successful appointmentId={} paymentId={}", appointmentId, p.getId());
 
+		
 		return toResponse(p);
 	}
 
 	private Appointment mustBeCustomerOwnedAppt(String customerEmail, Long appointmentId) {
+		 log.info("Validating customer ownership for appointmentId={} by {}", appointmentId, customerEmail);
 		User user = userRepository.findByEmail(customerEmail)
 				.orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
@@ -95,7 +110,8 @@ public class PaymentServiceImpl implements PaymentService {
 				.orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
 		if (!appt.getCustomer().getUserId().equals(user.getUserId())) {
-			throw new ResourceNotFoundException("Not your appointment");
+			log.warn("Unauthorized access: customer={} tried appointmentId={}", customerEmail, appointmentId);
+			throw new BadRequestException("Not your appointment");
 		}
 		if (appt.getStatus() == BookingStatus.CANCELLED || appt.getStatus() == BookingStatus.REJECTED) {
 			throw new ResourceNotFoundException("Cannot pay for cancelled/rejected booking");
@@ -104,16 +120,20 @@ public class PaymentServiceImpl implements PaymentService {
 	}
 
 	private Double computeDiscount(Double amount, String code) {
+		
+		log.info("Computing discount for code={}", code);
 		OfferResponse offer = offerService.getByCode(code);
 
 		LocalDate today = LocalDate.now();
 		boolean dateOk = (offer.getStartDate() == null || !today.isBefore(offer.getStartDate()))
 				&& (offer.getEndDate() == null || !today.isAfter(offer.getEndDate()));
 		if (!dateOk || offer.getActive() == null || !offer.getActive()) {
+			log.warn("Offer inactive or expired code={}", code);
 			return 0.0;
 		}
 
 		if (offer.getMinOrderAmount() != null && amount < offer.getMinOrderAmount()) {
+			log.warn("Amount {} lower than required minOrderAmount for offerCode={}", amount, code);
 			return 0.0;
 		}
 
@@ -133,6 +153,7 @@ public class PaymentServiceImpl implements PaymentService {
 		if (discount > amount)
 			discount = amount;
 
+		log.info("Discount computed code={} finalDiscount={}", code, discount);
 		return discount;
 	}
 

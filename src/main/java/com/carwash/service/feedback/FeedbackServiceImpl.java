@@ -4,6 +4,8 @@ package com.carwash.service.feedback;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,9 @@ import com.carwash.repository.feedback.FeedbackRepository;
 @Service
 public class FeedbackServiceImpl implements FeedbackService {
 
+
+    private static final Logger log = LoggerFactory.getLogger(FeedbackServiceImpl.class);
+
     @Autowired
     private FeedbackRepository feedbackRepo;
 
@@ -41,7 +46,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public FeedbackResponse createFeedback(String customerEmail, FeedbackCreateRequest req) {
-        User customer = userRepo.findByEmail(customerEmail)
+    	 log.info("Creating feedback for customerEmail={} appointmentId={}", customerEmail, req.getAppointmentId());
+    	User customer = userRepo.findByEmail(customerEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
         Appointment appt = apptRepo.findById(req.getAppointmentId())
@@ -82,7 +88,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public List<FeedbackResponse> getMyFeedbacks(String customerEmail) {
-        User customer = userRepo.findByEmail(customerEmail)
+    	 log.info("Fetching my feedbacks for customerEmail={}", customerEmail);
+    	User customer = userRepo.findByEmail(customerEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
         return feedbackRepo.findByCustomerUserId(customer.getUserId())
@@ -93,7 +100,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public List<FeedbackResponse> getByProvider(Long providerId) {
-        return feedbackRepo.findByServiceProviderId(providerId)
+    	log.info("Fetching feedbacks by providerId={}", providerId);
+    	return feedbackRepo.findByServiceProviderId(providerId)
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -101,6 +109,9 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public List<FeedbackResponse> getAll() {
+
+        log.info("Fetching all feedbacks");
+
         return feedbackRepo.findAll()
                 .stream()
                 .map(this::toResponse)
@@ -109,7 +120,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public ProviderFeedbackSummary getProviderRatingSummary(Long providerId) {
-        List<Feedback> list = feedbackRepo.findByServiceProviderId(providerId);
+    	log.info("Computing rating summary for providerId={}", providerId);
+    	List<Feedback> list = feedbackRepo.findByServiceProviderId(providerId);
 
         if (list.isEmpty()) {
             return new ProviderFeedbackSummary(providerId, 0.0, 0L);
@@ -127,7 +139,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public void refreshProviderRating(Long providerId) {
-        List<Feedback> list = feedbackRepo.findByServiceProviderId(providerId);
+    	log.info("Refreshing provider rating providerId={}", providerId);
+    	List<Feedback> list = feedbackRepo.findByServiceProviderId(providerId);
 
         double avg = list.stream()
                 .mapToInt(Feedback::getRating)
@@ -137,6 +150,9 @@ public class FeedbackServiceImpl implements FeedbackService {
                providerRepo.findById(providerId).ifPresent(p -> {
             p.setRating(round1(avg));
             providerRepo.save(p);
+
+            log.info("Provider rating updated providerId={} rating={}", providerId, round1(avg));
+
         });
     }
 

@@ -3,6 +3,8 @@ package com.carwash.service.offer;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,15 +19,20 @@ import com.carwash.repository.offer.OfferRepository;
 @Service
 public class OfferServiceImpl implements OfferService {
 
+	private static final Logger log = LoggerFactory.getLogger(OfferServiceImpl.class);
 	@Autowired
 	private OfferRepository offerRepo;
 
 	@Override
 	public OfferResponse create(OfferRequest req) {
+		log.info("Creating offer code={}", req.getCode());
 		validate(req, true);
-		if (offerRepo.existsByCode(req.getCode()))
+		if (offerRepo.existsByCode(req.getCode())) {
+			log.warn("Offer creation failed — code already exists code={}", req.getCode());
+
 			throw new ConflictException("Code already exists");
-		Offer o = requestToOffer(new Offer(), req);
+		}
+			Offer o = requestToOffer(new Offer(), req);
 		o.setActive(true);
 		o = offerRepo.save(o);
 		return offertoResponse(o);
@@ -33,6 +40,7 @@ public class OfferServiceImpl implements OfferService {
 
 	@Override
 	public OfferResponse update(Long id, OfferRequest req) {
+		log.info("Updating offer id={}", id);
 		Offer o = offerRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Offer not found"));
 		if (req.getCode() != null && !req.getCode().equals(o.getCode())) {
 			if (offerRepo.existsByCode(req.getCode()))
@@ -41,12 +49,19 @@ public class OfferServiceImpl implements OfferService {
 		validate(req, false);
 		o = requestToOffer(o, req);
 		o = offerRepo.save(o);
+		log.info("Offer updated id={}", id);
 		return offertoResponse(o);
 	}
 
 	@Override
 	public void delete(Long id) {
+
+        log.info("Deleting offer id={}", id);
+
 		offerRepo.deleteById(id);
+
+        log.info("Offer deleted id={}", id);
+
 	}
 
 	@Override
@@ -54,6 +69,9 @@ public class OfferServiceImpl implements OfferService {
 		Offer o = offerRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Offer not found"));
 		o.setActive(true);
 		offerRepo.save(o);
+
+        log.info("Offer activated id={}", id);
+
 	}
 
 	@Override
@@ -61,16 +79,24 @@ public class OfferServiceImpl implements OfferService {
 		Offer o = offerRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Offer not found"));
 		o.setActive(false);
 		offerRepo.save(o);
+
+        log.info("Offer deactivated id={}", id);
+
+        
 	}
 
 	@Override
 	public OfferResponse getById(Long id) {
+
+        log.info("Fetching offer by id={}", id);
+
 		Offer o = offerRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Offer not found"));
 		return offertoResponse(o);
 	}
 
 	@Override
 	public List<OfferResponse> getAll(boolean onlyActive, boolean onlyRunningToday) {
+		log.info("Listing offers onlyActive={} onlyRunningToday={}", onlyActive, onlyRunningToday);
 		if (onlyRunningToday) {
 			LocalDate today = LocalDate.now();
 			return offerRepo.findByActiveTrueAndStartDateLessThanEqualAndEndDateGreaterThanEqual(today, today).stream()
