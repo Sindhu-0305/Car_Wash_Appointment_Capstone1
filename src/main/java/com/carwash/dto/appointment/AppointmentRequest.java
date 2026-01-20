@@ -2,10 +2,22 @@ package com.carwash.dto.appointment;
 
 import java.time.LocalDateTime;
 
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.NotNull;
+
 public class AppointmentRequest {
 
+
+    @NotNull(message = "Service item ID is required")
+
     private Long serviceItemId;
+    
+
+    @NotNull(message = "Provider ID is required")
+
     private Long providerId;
+    
+    @Future(message = "Appointment time must be in the future")
     private LocalDateTime scheduledAt;
     private String notes;
 	public Long getServiceItemId() {

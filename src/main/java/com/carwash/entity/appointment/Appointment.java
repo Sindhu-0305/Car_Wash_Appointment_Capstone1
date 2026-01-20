@@ -22,7 +22,7 @@ import jakarta.persistence.Table;
 @Table(name="appointments")
 public class Appointment {
 
-	 @Id
+	    @Id
 	    @GeneratedValue(strategy = GenerationType.IDENTITY)
 	    private Long id;
 

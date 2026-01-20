@@ -1,6 +1,8 @@
 package com.carwash.service.scatalog;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +19,7 @@ import com.carwash.repository.scatalog.ServiceItemRepository;
 
 @Service
 public class ServiceCatalogServiceImpl implements ServiceCatalogService {
-	 private static final Logger log = LoggerFactory.getLogger(ServiceCatalogServiceImpl.class);
+	private static final Logger log = LoggerFactory.getLogger(ServiceCatalogServiceImpl.class);
 	@Autowired
 	private ServiceItemRepository repo;
 
@@ -36,7 +38,7 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
 		item.setDurationMinutes(req.getDurationMinutes());
 		item.setActive(true);
 		item = repo.save(item);
-		 log.info("Catalog item created id={}", item.getId());
+		log.info("Catalog item created id={}", item.getId());
 		return toResponse(item);
 	}
 
@@ -62,7 +64,7 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
 			item.setCode(req.getCode());
 		}
 		item = repo.save(item);
-		 log.info("Catalog item updated id={}", id);
+		log.info("Catalog item updated id={}", id);
 		return toResponse(item);
 	}
 
@@ -70,7 +72,7 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
 	public void delete(Long id) {
 		repo.deleteById(id);
 
-        log.info("Catalog item deleted id={}", id);
+		log.info("Catalog item deleted id={}", id);
 
 	}
 
@@ -99,15 +101,18 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
 
 	@Override
 	public List<ServiceItemResponse> getAll(boolean onlyActive) {
-		 log.info("Fetching catalog items onlyActive={}", onlyActive);
+		log.info("Fetching catalog items onlyActive={}", onlyActive);
 		List<ServiceItem> items;
 		if (onlyActive) {
 			items = repo.findByActiveTrue();
 		} else {
 			items = repo.findAll();
 		}
-		return items.stream().map(this::toResponse).toList();
-
+		List<ServiceItemResponse> result = new ArrayList<>();
+		for (ServiceItem i : items) {
+			result.add(toResponse(i));
+		}
+		return result;
 	}
 
 	@Override
@@ -120,7 +125,12 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
 			items = repo.findByCategory(category);
 		}
 		log.info("Fetched {} catalog items for category={}", items.size(), category);
-		return items.stream().map(this::toResponse).toList();
+
+		List<ServiceItemResponse> result = new ArrayList<>();
+		for (ServiceItem i : items) {
+			result.add(toResponse(i));
+		}
+		return result;
 
 	}
 

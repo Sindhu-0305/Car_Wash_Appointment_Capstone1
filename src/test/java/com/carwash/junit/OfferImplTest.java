@@ -1,54 +1,63 @@
+
 package com.carwash.junit;
 
-
-
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.when;
 
-import java.util.Optional;
+import java.time.LocalDate;
 
-import org.junit.jupiter.api.BeforeEach;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import com.carwash.dto.offer.OfferRequest;
+import com.carwash.enums.offer.DiscountType;
 import com.carwash.exception.ConflictException;
 import com.carwash.exception.ResourceNotFoundException;
-import com.carwash.repository.offer.OfferRepository;
 import com.carwash.service.offer.OfferServiceImpl;
 
-class OfferServiceImplTest {
+@SpringBootTest
+@AutoConfigureTestDatabase(replace = Replace.NONE)
+@Transactional
+class OfferServiceImplIT {
 
-    @InjectMocks
+    @Autowired
     private OfferServiceImpl service;
 
-    @Mock
-    private OfferRepository offerRepo;
+    @Test
+    void createOffer_duplicateCode_shouldThrowConflict() {
+        String code = "OFR_" + System.nanoTime();
 
-    @BeforeEach
-    void init() {
-        MockitoAnnotations.openMocks(this);
+        OfferRequest first = new OfferRequest();
+        first.setCode(code);
+        first.setTitle("New Year 50");
+        first.setDescription("Flat 50% off");
+        first.setDiscountType(DiscountType.PERCENTAGE);
+        first.setDiscountValue(50.0);
+        first.setMinOrderAmount(400.0);
+        first.setMaxDiscountAmount(300.0);
+        first.setStartDate(LocalDate.now().minusDays(1));
+        first.setEndDate(LocalDate.now().plusDays(10));
+        service.create(first);
+
+        OfferRequest dup = new OfferRequest();
+        dup.setCode(code);
+        dup.setTitle("Duplicate");
+        dup.setDescription("Duplicate");
+        dup.setDiscountType(DiscountType.PERCENTAGE);
+        dup.setDiscountValue(50.0);
+        dup.setMinOrderAmount(400.0);
+        dup.setMaxDiscountAmount(300.0);
+        dup.setStartDate(LocalDate.now().minusDays(1));
+        dup.setEndDate(LocalDate.now().plusDays(10));
+
+        assertThrows(ConflictException.class, () -> service.create(dup));
     }
 
-    
     @Test
-    void testCreateOffer_DuplicateCode() {
-        OfferRequest req = new OfferRequest();
-        req.setCode("NEW50");
-
-        when(offerRepo.existsByCode("NEW50")).thenReturn(true);
-
-        assertThrows(ConflictException.class, () -> service.create(req));
-    }
-
-    
-    @Test
-    void testGetById_NotFound() {
-        when(offerRepo.findById(999L)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> service.getById(999L));
+    void getById_notFound_shouldThrowNotFound() {
+        assertThrows(ResourceNotFoundException.class, () -> service.getById(999_999L));
     }
 }
-

@@ -20,6 +20,8 @@ import com.carwash.dto.appointment.ServiceProviderAvailability;
 import com.carwash.enums.appointment.BookingStatus;
 import com.carwash.service.appointment.AppointmentService;
 
+import jakarta.validation.Valid;
+
 @RestController
 public class AppointmentController {
 
@@ -43,7 +45,7 @@ public class AppointmentController {
 
 	@PostMapping("/bookings")
 	public ResponseEntity<AppointmentResponse> create(Authentication authentication,
-			@RequestBody AppointmentRequest req) {
+			@Valid @RequestBody AppointmentRequest req) {
 		return ResponseEntity.ok(appointmentService.create(authentication.getName(), req));
 	}
 

@@ -46,7 +46,7 @@ public class UserServiceImpl implements UserService {
 		log.info("Registering new customer email={}", request.getEmail());
 		if (userRepository.existsByEmail(request.getEmail())) {
 			log.warn("Customer registration failed — email already exists {}", request.getEmail());
-			return ResponseEntity.badRequest().body("Email already exists");
+			return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already exists");
 		}
 		User user = UserMapper.RequestToUser(request);
 		user.setPassword(passwordEncoder.encode(request.getPassword()));

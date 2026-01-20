@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.carwash.dto.offer.OfferRequest;
 import com.carwash.dto.offer.OfferResponse;
 import com.carwash.entity.offer.Offer;
+import com.carwash.enums.offer.DiscountType;
 import com.carwash.exception.BadRequestException;
 import com.carwash.exception.ConflictException;
 import com.carwash.exception.ResourceNotFoundException;
@@ -122,11 +123,11 @@ public class OfferServiceImpl implements OfferService {
 				throw new BadRequestException("endDate must be after startDate");
 		}
 		if (req.getDiscountType() != null && req.getDiscountValue() != null) {
-			if (req.getDiscountType().name().equals("PERCENTAGE")
+			if (req.getDiscountType()== DiscountType.PERCENTAGE
 					&& (req.getDiscountValue() < 0 || req.getDiscountValue() > 100)) {
 				throw new BadRequestException("Percentage discount must be between 0 and 100");
 			}
-			if (req.getDiscountType().name().equals("FLAT") && req.getDiscountValue() < 0) {
+			if (req.getDiscountType()== DiscountType.FLAT && req.getDiscountValue() < 0) {
 				throw new BadRequestException("Flat discount must be >= 0");
 			}
 		}

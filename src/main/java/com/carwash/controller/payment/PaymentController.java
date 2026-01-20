@@ -31,7 +31,7 @@ public class PaymentController {
 		return ResponseEntity.ok(paymentService.pay(auth.getName(), appointmentId, method, offerCode));
 	}
 
-	@GetMapping("/appointment/{id}")
+	@GetMapping("/payments/appointment/{id}")
 	public ResponseEntity<?> getPaymentByAppointment(@PathVariable Long id) {
 		return ResponseEntity.ok(paymentService.getByAppointmentId(id));
 	}

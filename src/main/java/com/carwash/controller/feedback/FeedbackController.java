@@ -50,7 +50,7 @@ public class FeedbackController {
 	    }
 
 	    
-	    @GetMapping
+	    @GetMapping("/admin/feedbacks")
 	    @PreAuthorize("hasRole('ADMIN')")
 	    public ResponseEntity<List<FeedbackResponse>> all() {
 	        return ResponseEntity.ok(service.getAll());
